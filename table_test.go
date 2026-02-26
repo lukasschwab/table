@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,6 +13,15 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/stretchr/testify/assert"
 )
+
+// writeArtifact writes content to a named file in the test's artifact directory.
+func writeArtifact(t *testing.T, name, content string) {
+	t.Helper()
+	path := filepath.Join(t.ArtifactDir(), name)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("writing artifact %s: %v", name, err)
+	}
+}
 
 func TestFormatter(t *testing.T) {
 	t.Parallel()
@@ -324,6 +334,7 @@ func TestTable_WithColumnAlignments(t *testing.T) {
 			AddRow("Customer3", "$400.00", "3 James Street").
 			Print()
 
+		writeArtifact(t, "table.txt", buf.String())
 		expected := `Name         Balance  Address          
 Customer1     $10.00  123 My Street    
 Customer2  $1,000.00  333 Railway Pde  
@@ -344,6 +355,7 @@ Customer3    $400.00  3 James Street
 			AddRow("xxx", "y").
 			Print()
 
+		writeArtifact(t, "table.txt", buf.String())
 		expected := `  A   B  
   x  yy  
 xxx   y  
@@ -363,6 +375,7 @@ xxx   y
 			AddRow("xxx", "y", "z").
 			Print()
 
+		writeArtifact(t, "table.txt", buf.String())
 		// First column right-aligned, rest default left-aligned
 		expected := `  A  B   C    
   x  yy  zzz  
@@ -382,6 +395,7 @@ xxx  y   z
 			AddRow("xxx", "y").
 			Print()
 
+		writeArtifact(t, "table.txt", buf.String())
 		expected := `A    B   
 x    yy  
 xxx  y   
@@ -402,6 +416,7 @@ xxx  y
 			AddRow("Bob", "$1,000.00").
 			Print()
 
+		writeArtifact(t, "table.txt", buf.String())
 		expected := `Name     Balance  
 ----     -------  
 Alice     $10.00  
@@ -425,6 +440,7 @@ Bob    $1,000.00
 			Print()
 
 		actual := buf.String()
+		writeArtifact(t, "table.txt", actual)
 		assert.Contains(t, actual, "请求 alpha")
 		assert.Contains(t, actual, " abc beta")
 	})
