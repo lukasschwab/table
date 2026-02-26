@@ -309,3 +309,123 @@ func TestTable_WithWidthFunc(t *testing.T) {
 	assert.Contains(t, actual, "请求 alpha")
 	assert.Contains(t, actual, "abc  beta")
 }
+
+func TestTable_WithColumnAlignments(t *testing.T) {
+	t.Parallel()
+
+	t.Run("right align single column", func(t *testing.T) {
+		t.Parallel()
+		buf := bytes.Buffer{}
+		New("Name", "Balance", "Address").
+			WithWriter(&buf).
+			WithColumnAlignments(AlignLeft, AlignRight, AlignLeft).
+			AddRow("Customer1", "$10.00", "123 My Street").
+			AddRow("Customer2", "$1,000.00", "333 Railway Pde").
+			AddRow("Customer3", "$400.00", "3 James Street").
+			Print()
+
+		expected := `Name         Balance  Address          
+Customer1     $10.00  123 My Street    
+Customer2  $1,000.00  333 Railway Pde  
+Customer3    $400.00  3 James Street   
+`
+		if diff := cmp.Diff(expected, buf.String()); diff != "" {
+			t.Fatalf("table mismatch (-expected +got):\n%s\nout=%#v", diff, buf.String())
+		}
+	})
+
+	t.Run("all columns right aligned", func(t *testing.T) {
+		t.Parallel()
+		buf := bytes.Buffer{}
+		New("A", "B").
+			WithWriter(&buf).
+			WithColumnAlignments(AlignRight, AlignRight).
+			AddRow("x", "yy").
+			AddRow("xxx", "y").
+			Print()
+
+		expected := `  A   B  
+  x  yy  
+xxx   y  
+`
+		if diff := cmp.Diff(expected, buf.String()); diff != "" {
+			t.Fatalf("table mismatch (-expected +got):\n%s\nout=%#v", diff, buf.String())
+		}
+	})
+
+	t.Run("partial alignments default to left", func(t *testing.T) {
+		t.Parallel()
+		buf := bytes.Buffer{}
+		New("A", "B", "C").
+			WithWriter(&buf).
+			WithColumnAlignments(AlignRight).
+			AddRow("x", "yy", "zzz").
+			AddRow("xxx", "y", "z").
+			Print()
+
+		// First column right-aligned, rest default left-aligned
+		expected := `  A  B   C    
+  x  yy  zzz  
+xxx  y   z    
+`
+		if diff := cmp.Diff(expected, buf.String()); diff != "" {
+			t.Fatalf("table mismatch (-expected +got):\n%s\nout=%#v", diff, buf.String())
+		}
+	})
+
+	t.Run("no alignments defaults to all left", func(t *testing.T) {
+		t.Parallel()
+		buf := bytes.Buffer{}
+		New("A", "B").
+			WithWriter(&buf).
+			AddRow("x", "yy").
+			AddRow("xxx", "y").
+			Print()
+
+		expected := `A    B   
+x    yy  
+xxx  y   
+`
+		if diff := cmp.Diff(expected, buf.String()); diff != "" {
+			t.Fatalf("table mismatch (-expected +got):\n%s\nout=%#v", diff, buf.String())
+		}
+	})
+
+	t.Run("right align with header separator", func(t *testing.T) {
+		t.Parallel()
+		buf := bytes.Buffer{}
+		New("Name", "Balance").
+			WithWriter(&buf).
+			WithHeaderSeparatorRow('-').
+			WithColumnAlignments(AlignLeft, AlignRight).
+			AddRow("Alice", "$10.00").
+			AddRow("Bob", "$1,000.00").
+			Print()
+
+		expected := `Name     Balance  
+----     -------  
+Alice     $10.00  
+Bob    $1,000.00  
+`
+		if diff := cmp.Diff(expected, buf.String()); diff != "" {
+			t.Fatalf("table mismatch (-expected +got):\n%s\nout=%#v", diff, buf.String())
+		}
+	})
+
+	t.Run("right align with wide characters", func(t *testing.T) {
+		t.Parallel()
+		buf := bytes.Buffer{}
+		New("", "").
+			WithWriter(&buf).
+			WithPadding(1).
+			WithWidthFunc(runewidth.StringWidth).
+			WithColumnAlignments(AlignRight, AlignLeft).
+			AddRow("请求", "alpha").
+			AddRow("abc", "beta").
+			Print()
+
+		actual := buf.String()
+		assert.Contains(t, actual, "请求 alpha")
+		assert.Contains(t, actual, " abc beta")
+	})
+}

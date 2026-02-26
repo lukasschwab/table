@@ -33,6 +33,17 @@ import (
 	"unicode/utf8"
 )
 
+// Alignment represents the text alignment for a column.
+type Alignment int
+
+const (
+	// AlignLeft aligns text to the left of the column (default).
+	AlignLeft Alignment = iota
+
+	// AlignRight aligns text to the right of the column.
+	AlignRight
+)
+
 // These are the default properties for all Tables created from this package
 // and can be modified.
 var (
@@ -130,6 +141,7 @@ type Table interface {
 	WithWidthFunc(f WidthFunc) Table
 	WithHeaderSeparatorRow(r rune) Table
 	WithPrintHeaders(b bool) Table
+	WithColumnAlignments(alignments ...Alignment) Table
 
 	AddRow(vals ...interface{}) Table
 	SetRows(rows [][]string) Table
@@ -165,9 +177,10 @@ type table struct {
 	HeaderSeparatorRune  rune
 	PrintHeaders         bool
 
-	header []string
-	rows   [][]string
-	widths []int
+	header     []string
+	rows       [][]string
+	widths     []int
+	alignments []Alignment
 }
 
 func (t *table) WithHeaderFormatter(f Formatter) Table {
@@ -210,6 +223,11 @@ func (t *table) WithWidthFunc(f WidthFunc) Table {
 
 func (t *table) WithPrintHeaders(b bool) Table {
 	t.PrintHeaders = b
+	return t
+}
+
+func (t *table) WithColumnAlignments(alignments ...Alignment) Table {
+	t.alignments = alignments
 	return t
 }
 
@@ -332,10 +350,25 @@ func (t *table) calculateWidths() {
 	}
 }
 
+func (t *table) columnAlignment(i int) Alignment {
+	if i < len(t.alignments) {
+		return t.alignments[i]
+	}
+	return AlignLeft
+}
+
 func (t *table) applyWidths(row []string, widths []int) []interface{} {
 	out := make([]interface{}, len(row))
 	for i, s := range row {
-		out[i] = s + t.lenOffset(s, widths[i])
+		if t.columnAlignment(i) == AlignRight {
+			// For right-aligned columns, the alignment gap goes before the
+			// text and the inter-column padding goes after it.
+			alignGap := t.lenOffset(s, widths[i]-t.Padding)
+			pad := strings.Repeat(" ", t.Padding)
+			out[i] = alignGap + s + pad
+		} else {
+			out[i] = s + t.lenOffset(s, widths[i])
+		}
 	}
 	return out
 }
